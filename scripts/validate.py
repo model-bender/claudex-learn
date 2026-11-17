@@ -13,6 +13,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import yaml
 
@@ -81,6 +82,57 @@ def check_lesson(path: Path, meta: dict, body: str, categories: list, report: Re
         report.error(path, "missing a `## TL;DR` section")
 
 
+def source_key(url: str) -> str:
+    """A comparable form of a source URL: the video ID for YouTube, else the URL minus fragment and trailing slash.
+
+    Lessons cite timestamped links (`&t=181s`) while urls.txt holds the bare URL.
+    """
+    parts = urlparse(url.strip())
+    host = parts.netloc.lower().removeprefix("www.")
+    if host == "youtu.be" and parts.path.strip("/"):
+        return "yt:" + parts.path.strip("/")
+    if host.endswith("youtube.com"):
+        video = parse_qs(parts.query).get("v")
+        if video:
+            return "yt:" + video[0]
+    return parts._replace(fragment="").geturl().rstrip("/")
+
+
+def listed_sources(tdir: Path) -> set[str] | None:
+    """Keys of the active lines in sources/urls.txt, or None when the topic has no such file."""
+    urls = tdir / "sources" / "urls.txt"
+    if not urls.exists():
+        return None
+    lines = (line.strip() for line in urls.read_text(encoding="utf-8").splitlines())
+    return {source_key(line) for line in lines if line and not line.startswith("#")}
+
+
+def check_stale_sources(tdir: Path, lessons: dict[str, dict], report: Report) -> None:
+    """Warn when an active lesson cites a source the topic no longer has.
+
+    Fetched source files are gitignored, so a missing file alone proves nothing in a fresh clone,
+    and hand-made sources (a pasted digest) have no urls.txt line. A source only counts as stale
+    when it is neither listed in urls.txt nor present on disk.
+    """
+    listed = listed_sources(tdir)
+    if listed is None:
+        return
+    for info in lessons.values():
+        meta, path = info["meta"], info["path"]
+        if meta.get("status") != "active" or not isinstance(meta.get("sources"), list):
+            continue
+        for src in meta["sources"]:
+            if not isinstance(src, dict):
+                continue
+            url, file = src.get("url"), src.get("file")
+            if url and source_key(str(url)) in listed:
+                continue
+            if file and (tdir / str(file)).exists():
+                continue
+            cited = url or file
+            report.warn(path, f"cites `{cited}`, which is not in sources/urls.txt and has no local file; the source was removed from the topic")
+
+
 def check_topic(tdir: Path, report: Report) -> int:
     topic_md = tdir / "topic.md"
     if not topic_md.exists():
@@ -129,6 +181,8 @@ def check_topic(tdir: Path, report: Report) -> int:
                 report.error(path, f"supersedes `{old_id}`, which does not exist")
             elif old["meta"].get("status") != "superseded" or old["meta"].get("superseded_by") != lid:
                 report.error(path, f"supersedes `{old_id}`, but that lesson isn't `status: superseded` with `superseded_by: {lid}`")
+
+    check_stale_sources(tdir, lessons, report)
 
     active = {lid for lid, info in lessons.items() if info["meta"].get("status") == "active"}
     lessons_dir = tdir / "lessons"

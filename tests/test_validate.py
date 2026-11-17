@@ -100,3 +100,72 @@ def test_stale_path_is_a_warning_not_an_error(valid_topic):
     report = run(valid_topic)
     assert report.errors == []
     assert any("not in the path yet" in w for w in report.warnings)
+
+
+def stale_warnings(tdir):
+    return [w for w in run(tdir).warnings if "sources/urls.txt" in w]
+
+
+def set_sources(path, block):
+    text = path.read_text(encoding="utf-8")
+    head, rest = text.split("sources:\n", 1)
+    tail = rest.split("---\n", 1)[1]
+    path.write_text(f"{head}sources:\n{block}---\n{tail}", encoding="utf-8")
+
+
+def write_urls(tdir, text):
+    (tdir / "sources").mkdir(exist_ok=True)
+    (tdir / "sources" / "urls.txt").write_text(text, encoding="utf-8")
+
+
+def test_source_removed_from_urls_txt_warns(valid_topic):
+    write_urls(valid_topic, "https://example.com/other\n")
+    warnings = stale_warnings(valid_topic)
+    assert len(warnings) == 1 and "https://example.com/article" in warnings[0] and "one.md" in warnings[0]
+
+
+def test_commented_out_url_does_not_count_as_listed(valid_topic):
+    write_urls(valid_topic, "# https://example.com/article\n")
+    assert len(stale_warnings(valid_topic)) == 1
+
+
+def test_listed_source_does_not_warn(valid_topic):
+    write_urls(valid_topic, "https://example.com/article\n")
+    assert stale_warnings(valid_topic) == []
+
+
+def test_hand_made_source_with_a_local_file_does_not_warn(valid_topic):
+    write_urls(valid_topic, "https://example.com/other\n")
+    (valid_topic / "sources" / "digest.md").write_text("notes", encoding="utf-8")
+    set_sources(
+        valid_topic / "lessons" / "basics" / "one.md",
+        "  - title: Digest\n    url: https://forum.example.com/r/demo\n    file: sources/digest.md\n",
+    )
+    assert stale_warnings(valid_topic) == []
+
+
+def test_timestamped_youtube_url_matches_bare_urls_txt_line(valid_topic):
+    write_urls(valid_topic, "https://www.youtube.com/watch?v=abc123XYZ_-\n")
+    set_sources(
+        valid_topic / "lessons" / "basics" / "one.md",
+        "  - title: Video\n    url: https://www.youtube.com/watch?v=abc123XYZ_-&t=181s\n    file: sources/gone.md\n",
+    )
+    assert stale_warnings(valid_topic) == []
+
+
+def test_superseded_lesson_is_skipped(valid_topic):
+    write_urls(valid_topic, "https://example.com/other\n")
+    write_lesson(valid_topic, "one", status="superseded")
+    assert stale_warnings(valid_topic) == []
+
+
+def test_topic_without_urls_txt_is_skipped(valid_topic):
+    assert stale_warnings(valid_topic) == []
+
+
+@pytest.mark.parametrize("a, b", [
+    ("https://youtu.be/abc123?t=5", "https://www.youtube.com/watch?v=abc123"),
+    ("https://example.com/a/#frag", "https://example.com/a"),
+])
+def test_source_key_treats_variants_as_one_source(a, b):
+    assert validate.source_key(a) == validate.source_key(b)

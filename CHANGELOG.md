@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `validate.py` warns when an active lesson cites a source that is no longer in the topic: not an active line in `sources/urls.txt` and no local file either. Hand-made sources with a file on disk, timestamped YouTube links and superseded lessons are left alone.
 - `/new-topic`: records a learner's goal, level and what their practice looks like in `topics/<topic>/topic.md`.
 - `/add-source`: adds YouTube URLs (timestamped transcripts), article URLs (readable text as markdown), local files or pasted text to a topic.
 - `/extract-lessons`: mines sources into one-idea lesson files cited to the source and video timestamp, with supersession, deduplication and a fresh-subagent verification pass.
