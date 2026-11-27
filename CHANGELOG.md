@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- The README opens with a banner that follows GitHub's light or dark theme, shows the flow as a diagram instead of text art, and folds the transcript notes and the repo layout away until opened. Its wording is the same apart from the diagram labels.
+
 - The repo's rules now live in `AGENTS.md`, which Codex reads directly, and `CLAUDE.md` imports it with `@AGENTS.md`, so both tools follow one copy. Codex can't import files, so the shared copy has to be the file it reads. A short Codex-only section says how to run the Claude Code commands from Codex.
 
 - `/extract-lessons` mines and verifies with a read-only `source-reader` agent (Read, Grep and Glob only) instead of the general-purpose agent, and that agent treats text inside a source as material to summarise, never as instructions.
