@@ -1,9 +1,16 @@
-# claudex-learn
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner_dark.svg">
+  <img src=".github/readme/banner_light.svg" alt="claudex-learn: learn any topic from the sources you pick, inside Claude Code" width="100%">
+</picture>
+
+[Quickstart](#quickstart) · [How it works](#how-it-works) · [Commands](#commands) · [Sources](#sources) · [Development](#development)
 
 [![ci](https://github.com/model-bender/claudex-learn/actions/workflows/ci.yml/badge.svg)](https://github.com/model-bender/claudex-learn/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Learn any topic from the sources you pick, inside [Claude Code](https://claude.com/claude-code).**
+</div>
 
 Give it YouTube links, article URLs or your own notes. claudex-learn turns them into short
 lessons that each cite where they came from, down to the minute of the video. Then it lays them
@@ -16,17 +23,12 @@ Spanish, a programming language.
 
 ## Quickstart
 
-**Requirements:** Claude Code and [`uv`](https://docs.astral.sh/uv/).
+**Requirements:** [Claude Code](https://claude.com/claude-code) and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/model-bender/claudex-learn
 cd claudex-learn && uv sync     # then open Claude Code here
 ```
-
-The first time you open it, Claude Code asks whether you trust the folder. The dialog lists what
-`.claude/settings.json` allows: the repo's own three scripts (`srs.py`, `validate.py`,
-`fetch_sources.py`) and nothing else. Accept it, and quizzes can save your progress without a
-permission prompt on every answer.
 
 ```text
 /new-topic guitar                              # your goal, your level, what your practice looks like
@@ -40,31 +42,31 @@ permission prompt on every answer.
 Between commands, just ask questions. Claude answers from your topic's lessons first and links
 to the source.
 
+> [!NOTE]
+> The first time you open it, Claude Code asks whether you trust the folder. The dialog lists what
+> `.claude/settings.json` allows: the repo's own three scripts (`srs.py`, `validate.py`,
+> `fetch_sources.py`) and nothing else. Accept it, and quizzes can save your progress without a
+> permission prompt on every answer.
+
 ## How it works
 
-```text
- sources (videos, articles, notes)
-        │  /add-source
-        ▼
- topics/<topic>/sources/*.md ──/extract-lessons──▶ lessons/<category>/<id>.md
-                                                        │
-                            ┌───────────────────────────┼──────────────────────────┐
-                            ▼                           ▼                          ▼
-                     /path: stages,              /quiz: spaced            /review: your work,
-                     beginner first              repetition               checked against lessons
-                                                        ▲                          │
-                                                        └──── lessons to drill ────┘
+```mermaid
+flowchart LR
+    S(["videos, articles, notes"]) -- /add-source --> F["sources"]
+    F -- /extract-lessons --> L["cited lessons"]
+    L --> P["/path<br/>stages, beginner first"]
+    L --> Q["/quiz<br/>spaced repetition"]
+    L --> R["/review<br/>your work, checked against lessons"]
+    R -. lessons to drill .-> Q
 ```
 
-- **One idea per lesson.** A video listing ten principles becomes ten lessons, each with a
-  TL;DR, why it matters, how to apply it, and a "check yourself" question.
-- **Every lesson cites its source.** Video citations jump to the timestamp where the idea is taught.
-- **Checked before it's kept.** A fresh subagent verifies new lessons against their sources
-  before they enter the library, and newer advice supersedes older advice instead of piling up.
-- **Quizzes favour applying over reciting.** Questions are scenarios ("what would you do
-  here?"), graded against the lesson. Anything you miss comes back sooner.
-- **Review closes the loop.** `/review` points at specific places in your work, names the lesson
-  each change comes from, and queues those lessons for your next quiz.
+| Principle | In practice |
+|---|---|
+| **One idea per lesson** | A video listing ten principles becomes ten lessons, each with a TL;DR, why it matters, how to apply it, and a "check yourself" question. |
+| **Every lesson cites its source** | Video citations jump to the timestamp where the idea is taught. |
+| **Checked before it's kept** | A fresh subagent verifies new lessons against their sources before they enter the library, and newer advice supersedes older advice instead of piling up. |
+| **Quizzes favour applying over reciting** | Questions are scenarios ("what would you do here?"), graded against the lesson. Anything you miss comes back sooner. |
+| **Review closes the loop** | `/review` points at specific places in your work, names the lesson each change comes from, and queues those lessons for your next quiz. |
 
 ## Commands
 
@@ -90,7 +92,9 @@ to the source.
 YouTube throttles heavy transcript fetching, so the fetcher spaces its requests out and stops
 after three blocked requests. Run it again later and it picks up where it stopped.
 
-## About YouTube transcripts
+<details>
+<summary><b>About YouTube transcripts</b></summary>
+<br>
 
 YouTube has no official way to download captions for videos you don't own: its API's caption
 download [requires permission to edit the video](https://developers.google.com/youtube/v3/docs/captions/download).
@@ -110,11 +114,17 @@ To keep that footprint small:
 If you'd rather not fetch automatically, open the video on YouTube, click **Show transcript**
 below the description, copy the text, and paste it in with `/add-source <topic> <pasted text>`.
 
-## What stays on your machine
+</details>
+
+<details>
+<summary><b>What stays on your machine</b></summary>
+<br>
 
 `.gitignore` keeps each topic's source files (transcripts and articles belong to their authors),
 your quiz progress (`progress.json`) and your reviews private. Lessons, the learning path and
 `topic.md` are committed, so a topic can be shared without its sources.
+
+</details>
 
 ## The chess example
 
@@ -130,7 +140,17 @@ uv run scripts/fetch_sources.py chess    # re-fetch its sources (needed only for
 /quiz chess
 ```
 
-## Layout
+## Development
+
+```bash
+uv run pytest -q                 # unit tests
+uv run scripts/validate.py       # commands, topics and lesson libraries are well-formed
+```
+
+CI runs both on every push and pull request. Changes are logged in [CHANGELOG.md](CHANGELOG.md).
+
+<details>
+<summary><b>Repo layout</b></summary>
 
 ```text
 topics/<topic>/
@@ -147,15 +167,10 @@ topics/<topic>/
 scripts/                  fetch_sources.py, srs.py, validate.py
 ```
 
-## Development
+</details>
 
-```bash
-uv run pytest -q                 # unit tests
-uv run scripts/validate.py       # commands, topics and lesson libraries are well-formed
-```
+---
 
-CI runs both on every push and pull request. Changes are logged in [CHANGELOG.md](CHANGELOG.md).
-
-## License
-
-[MIT](LICENSE)
+<div align="center">
+<sub><a href="LICENSE">MIT licensed</a> · sibling of <a href="https://github.com/model-bender/claudex-setup">claudex-setup</a></sub>
+</div>
